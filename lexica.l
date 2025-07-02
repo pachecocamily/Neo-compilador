@@ -102,6 +102,10 @@ STRING \"({LETRA}|{NUM}|{SIMBOLO})*\"
 
 "-="		        { return TK_MENOS_IGUAL; }
 
+"*="                { return TK_VEZES_IGUAL; }
+
+"/="                { return TK_DIVISAO_IGUAL; }
+
 {NUM}		{yylval.label = yytext; return TK_NUM;}
 {REAL}		{yylval.label = yytext; return TK_REAL;}
 {CHAR}		{yylval.label = yytext; return TK_CHAR;}

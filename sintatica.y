@@ -31,6 +31,9 @@ struct atributos
 	string tipo;
 	string valor;
 	string index;
+
+	vector<string> valores;
+	int linha = 0;
 };
 
 typedef struct
@@ -108,7 +111,7 @@ void verificarAtributoRelacional(atributos tipo_1);
 
 %token TK_NUM TK_REAL TK_CHAR TK_TRUE TK_FALSE TK_STRING TK_VOID TK_FUNCTION
 %token TK_MAIN TK_ID TK_TIPO_INT TK_TIPO_FLOAT TK_TIPO_CHAR TK_TIPO_BOOL TK_TIPO_STRING TK_CAST_FLOAT TK_CAST_INT TK_CAST_BOOL
-%token TK_MAIOR_IGUAL TK_MENOR_IGUAL TK_IGUAL_IGUAL TK_DIFERENTE TK_MAIS_MAIS TK_MENOS_MENOS TK_OU TK_E TK_MAIS_IGUAL TK_MENOS_IGUAL
+%token TK_MAIOR_IGUAL TK_MENOR_IGUAL TK_IGUAL_IGUAL TK_DIFERENTE TK_MAIS_MAIS TK_MENOS_MENOS TK_OU TK_E TK_MAIS_IGUAL TK_MENOS_IGUAL TK_VEZES_IGUAL TK_DIVISAO_IGUAL
 %token TK_IF TK_ELSE TK_WHILE TK_FOR TK_DO TK_SWITCH TK_CASE TK_BREAK TK_CONTINUE TK_PRINT TK_SCAN TK_RETURN
 %token TK_ERROR 
 
@@ -498,6 +501,80 @@ DECLARACAO  : TIPOS TK_ID
 					}
 				}
 			}
+			| TIPOS TK_ID '=' E
+			{
+				verificarVariavelRepetida($2.label);
+
+				string nome = $2.label;
+				string tipo = $1.tipo;
+				string label = gentempcode();
+
+				addSimbolo(nome, tipo, label);
+
+				string traducao = $4.traducao;
+
+				if (tipo == $4.tipo) {
+					traducao += "\t" + label + " = " + $4.label + ";\n";
+				} 
+				else if (tipo == "int" && $4.tipo == "float") {
+					string castTemp = gentempcode();
+					addTemp(castTemp, "int");
+					traducao += "\t" + castTemp + " = (int) " + $4.label + ";\n";
+					traducao += "\t" + label + " = " + castTemp + ";\n";
+				} 
+				else if (tipo == "float" && $4.tipo == "int") {
+					string castTemp = gentempcode();
+					addTemp(castTemp, "float");
+					traducao += "\t" + castTemp + " = (float) " + $4.label + ";\n";
+					traducao += "\t" + label + " = " + castTemp + ";\n";
+				} 
+				else {
+					error += "\033[1;31mError\033[0m - Linha " + contLinha + ": Tipos incompatíveis em inicialização.\n";
+				}
+
+				$$.traducao = traducao;
+			}
+			| TIPOS TK_ID INDICES
+			{
+				string nome = $2.label;
+				string tipo = $1.tipo;
+				string declaracao = tipo + " " + nome;
+
+				if ($3.label != "") {
+					declaracao += $3.label; // ex: [10][20]
+        			declaracao += ";";
+					if (controleFunction > 0)
+            			traducaoFunction += "\t" + declaracao + "\n";
+        			else if (getContexto() == 0)
+            			atribuicaoVariavelGlobais += "\t" + declaracao + "\n";
+        			else
+            			atribuicaoVariavel += "\t" + declaracao + "\n";
+
+					TIPO_SIMBOLO simb;
+					simb.nomeVariavel = nome;
+					simb.tipoVariavel = tipo;
+					simb.labelVariavel = nome; // para simplificar
+					addSimbolo(nome, tipo, nome);
+				}
+			}
+			| TIPOS TK_ID INDICES '=' INIT_MATRIZ
+			{
+				addSimbolo($2.label, $1.tipo, $2.label);
+
+				string tipo = $1.tipo;
+				string nome = $2.label;
+				string indices = $3.label;
+
+				string declaracao = tipo + " " + nome + indices + ";\n";
+    			string atribuicoes = $5.traducao;
+
+				if (controleFunction > 0)
+					traducaoFunction += "\t" + declaracao + atribuicoes;
+				else if (getContexto() == 0)
+					atribuicaoVariavelGlobais += "\t" + declaracao + atribuicoes;
+				else
+					atribuicaoVariavel += "\t" + declaracao + atribuicoes;
+			}
 			;
 
 TIPOS       : TK_TIPO_INT
@@ -523,6 +600,55 @@ TIPOS       : TK_TIPO_INT
 			| TK_VOID
 			{
 				$$.tipo = "void";
+			}
+			;
+
+INDICES : '[' TK_NUM ']' INDICES
+        {
+            $$.label = "[" + $2.label + "]" + $4.label;
+        }
+        | '[' TK_NUM ']'
+        {
+            $$.label = "[" + $2.label + "]";
+        }
+		;
+
+INIT_MATRIZ : '{' LINHAS_MATRIZ '}'
+			{
+				$$.traducao = $2.traducao;
+			}
+			;
+
+LINHAS_MATRIZ : '{' LISTA_VALORES '}'
+			{
+				$$.linha = 0;
+				$$.traducao = "";
+
+				for (int i = 0; i < $2.valores.size(); i++) {
+					$$.traducao += "\tm[0][" + std::to_string(i) + "] = " + $2.valores[i] + ";\n";
+				}
+
+				$$.valores = $2.valores;
+			}
+			| LINHAS_MATRIZ ',' '{' LISTA_VALORES '}'
+			{
+				$$.linha = $1.linha + 1;
+				$$.traducao = $1.traducao;
+
+				for (int i = 0; i < $4.valores.size(); i++) {
+					$$.traducao += "\tm[" + std::to_string($$.linha) + "][" + std::to_string(i) + "] = " + $4.valores[i] + ";\n";
+				}
+			}
+			;
+
+LISTA_VALORES : TK_NUM
+			{
+				$$.valores.push_back($1.label);
+			}
+			| LISTA_VALORES ',' TK_NUM
+			{
+				$$.valores = $1.valores;
+				$$.valores.push_back($3.label);
 			}
 			;
 
@@ -946,6 +1072,74 @@ ATRIBUICAO  : TK_ID '=' E
 					error += "\033[1;31mError\033[0m - \033[1;36mLinha " + contLinha +  ":\033[0m\033[1;39m Atribuição inválida, tipos diferentes.\n";
 				}
 			}
+			| TK_ID '[' E ']' '[' E ']' '=' E
+			{
+				TIPO_SIMBOLO var = getSimbolo($1.label);
+    			string traducao = $3.traducao + $6.traducao + $9.traducao;
+
+				if (var.tipoVariavel != $9.tipo) {
+					error += "\033[1;31mError\033[0m - Linha " + contLinha + ": Tipos incompatíveis na atribuição de matriz.\n";
+				}
+
+				traducao += "\t" + var.labelVariavel + "[" + $3.label + "][" + $6.label + "] = " + $9.label + ";\n";
+
+				if (getContexto() != 0)
+					$$.traducao = traducao;
+				else
+					traducaoFunction += traducao;
+			}
+			| TK_ID TK_MAIS_IGUAL E
+			{
+				TIPO_SIMBOLO simbolo = getSimbolo($1.label);
+
+				string tempSoma = gentempcode();
+				addTemp(tempSoma, simbolo.tipoVariavel);
+
+				string traducao = $3.traducao;
+				traducao += "\t" + tempSoma + " = " + simbolo.labelVariavel + " + " + $3.label + ";\n";
+				traducao += "\t" + simbolo.labelVariavel + " = " + tempSoma + ";\n";
+
+				$$.traducao = traducao;
+			}
+			| TK_ID TK_MENOS_IGUAL E
+			{
+				TIPO_SIMBOLO simbolo = getSimbolo($1.label);
+
+				string tempSub = gentempcode();
+				addTemp(tempSub, simbolo.tipoVariavel);
+
+				string traducao = $3.traducao;
+				traducao += "\t" + tempSub + " = " + simbolo.labelVariavel + " - " + $3.label + ";\n";
+				traducao += "\t" + simbolo.labelVariavel + " = " + tempSub + ";\n";
+
+				$$.traducao = traducao;
+			}
+			| TK_ID TK_VEZES_IGUAL E
+			{
+				TIPO_SIMBOLO simbolo = getSimbolo($1.label);
+
+				string tempSub = gentempcode();
+				addTemp(tempSub, simbolo.tipoVariavel);
+
+				string traducao = $3.traducao;
+				traducao += "\t" + tempSub + " = " + simbolo.labelVariavel + " * " + $3.label + ";\n";
+				traducao += "\t" + simbolo.labelVariavel + " = " + tempSub + ";\n";
+
+				$$.traducao = traducao;
+			}
+			| TK_ID TK_DIVISAO_IGUAL E
+			{
+				TIPO_SIMBOLO simbolo = getSimbolo($1.label);
+
+				string tempSub = gentempcode();
+				addTemp(tempSub, simbolo.tipoVariavel);
+
+				string traducao = $3.traducao;
+				traducao += "\t" + tempSub + " = " + simbolo.labelVariavel + " / " + $3.label + ";\n";
+				traducao += "\t" + simbolo.labelVariavel + " = " + tempSub + ";\n";
+
+				$$.traducao = traducao;
+			}
 			;
 
 M 			: M '*' P
@@ -1126,6 +1320,18 @@ P 			: '(' E ')'
 				$$.tipo = variavel.tipoVariavel;
 				$$.label = variavel.labelVariavel;
 				$$.traducao = "";
+			}
+			| TK_ID '[' E ']' '[' E ']'
+			{
+				TIPO_SIMBOLO var = getSimbolo($1.label);
+        		if (var.tipoVariavel != "int" && var.tipoVariavel != "float" && var.tipoVariavel != "char") {
+            		error += "\033[1;31mError\033[0m - Linha " + contLinha + ": Apenas tipos primitivos podem ser usados como matrizes.\n";
+        		}
+
+        		$$.label = gentempcode();
+				$$.tipo = var.tipoVariavel;
+				$$.traducao = $3.traducao + $6.traducao + "\t" + $$.label + " = " + var.labelVariavel + "[" + $3.label + "][" + $6.label + "];\n";
+				addTemp($$.label, $$.tipo);
 			}
 			| TK_PRINT '(' E ')'
 			{

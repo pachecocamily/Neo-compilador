@@ -1,0 +1,89 @@
+// funcao
+
+function int soma(int a, int b) {
+    return a + b;
+}
+
+int main() {
+    int resultado;
+    resultado = soma(3, 4);
+    print(resultado);
+}
+
+// matrizes
+
+int main() {
+    int matriz[3][3];
+    int i;
+    int j;
+    int resultado;
+
+    i = 1;
+    j = 2;
+
+    matriz[i][j] = 10;
+    resultado = matriz[1][2] + 5;
+
+    print(resultado);
+}
+
+// inicialização de matrizes 
+
+int main() {
+    int m[2][2] = {{1, 2}, {3, 4}};
+    print(m[1][0]);
+}
+
+// inicialização de variáveis
+
+int main() {
+   int a = 3;
+   float b = a;
+   print(b);
+}
+
+// operadores compostos
+
+int main() {
+   int a = 10;
+   a += 2;
+}
+
+// operadores unários
+
+int main() {
+    int resultado;
+    resultado++;
+}
+
+// detecção de erros
+
+    // atribuiçao inválida
+    int main() {
+        int x;
+        x = "texto";
+    }
+
+///// EXTRAS /////////
+
+// subprograma
+
+function void g() {
+    print("Ola mundo!");
+}
+
+int main() {
+    g();
+}
+
+// comandos protegidos
+
+    // break fora de look 
+    int main() {
+    break;
+    }
+
+
+
+
+

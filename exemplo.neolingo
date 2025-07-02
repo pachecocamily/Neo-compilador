@@ -1,6 +1,9 @@
+function int soma(int a, int b) {
+    return a + b;
+}
+
 int main() {
-    int x;
-    x = 10;
-    
-    break;
+    int resultado;
+    resultado = soma(3, 4);
+    print(resultado);
 }

@@ -1,12 +1,6 @@
-int main(){
-   int a;
-   int b;
-
-   a = 2;
-   b = 4;
-
-   if (b > a)
-   {
-      print("foi");
-   }
+int main() {
+    int x;
+    x = 10;
+    
+    break;
 }
